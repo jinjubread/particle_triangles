@@ -10,26 +10,24 @@ import processing.pdf.*;
 
 PVector midPoint;
 
-// ArrayList midPointsX;
-// ArrayList midPointsY;
 ArrayList particles;
 
-PVector vP1, vP2, vP3, cP1;
-
 int pointNumber;
-int trim;
-int[] style;
-int distance = 160;
+int trim, offset;
+int distance = 100;
 
 float randomBoundary;
 float randomBoundaryHeight;
 
 float midPointX, midPointY;
-float areaX, areaY, areaTotal;
+float lineA, lineB;
+float lineRatio = 3.0;
+
+float alphaModulate;
 
 
 void setup() {
-  size(800, 600, OPENGL);
+  size(375, 667, OPENGL);
   pixelDensity(displayDensity());
   smooth(8);
   colorMode(HSB,360,100,100,1);
@@ -39,44 +37,40 @@ void setup() {
   pointNumber = 24;
   particles = new ArrayList();
 
-  trim = 40;
+  trim = 20;
+  offset = 40;
+
   randomBoundary = width - trim*2;
   randomBoundaryHeight = height - trim*2;
 
-
   // generating points.
-  int index = 0;
-  float randomiser;
-
   for(int i = 0; i < pointNumber; i++){
     Particle particle = new Particle();
     particles.add(particle);
   }
 
+  noLoop();
+
 }
 
 void draw() {
-  fill(0, 0, 100, 1);
+  fill(#080B1A, 0.8);
   noStroke();
   rect(0, 0, width, height);
 
-  int index = 0;
-  float fading = 0.9;
   // 뭔가 삼각형을 만들려면 이렇게 해야하는 걸까...
 
   for(int i = 0; i < particles.size(); i++){
     pushMatrix();
 
     Particle particle1 = (Particle) particles.get(i);
-    particle1.display();
-    particle1.update();
+    // particle1.update();
 
     ellipseMode(CENTER);
 
     for(int j = i + 1; j < particles.size(); j++){
       Particle particle2 = (Particle) particles.get(j);
-      particle2.display();
-      particle2.update();
+      // particle2.update();
 
       if (dist(particle1.x, particle1.y, particle2.x, particle2.y) < distance) {
         fill(particle2.c);
@@ -85,46 +79,52 @@ void draw() {
         for (int k = i + 2; k < particles.size(); k++ ) {
           Particle particle3 = (Particle) particles.get(k);
           particle3.display();
-          particle3.update();
+          particle1.display();
+          particle2.display();
 
+          // in the middle of the 3 points
           midPointX = (particle1.x + particle2.x + particle3.x) / 3;
           midPointY = (particle1.y + particle2.y + particle3.y) / 3;
-          // vP2.add(vP1);
 
-          // 넓이로 가자...
-          areaX = (particle1.x * particle2.y) + (particle2.x * particle3.y) + (particle3.x * particle1.y);
-          areaY = (particle1.x * particle3.y) + (particle3.x * particle2.y) + (particle2.x * particle1.y);
-          areaTotal = (areaX - areaY)/2;
-          int checkArea = round(areaTotal);
+          // 비례를 구해보자..
+          lineA = dist(particle2.x, particle2.y, particle3.x, particle3.y);
+          lineB = dist((particle2.x + particle3.x)/2, (particle2.y + particle3.y)/2, particle1.x, particle1.y);
 
-          if(checkArea < 10000 && checkArea > 0) {
-              if(dist(particle2.x, particle2.y, particle3.x, particle3.y) < distance){
-                triangleGen(particle2.x, particle2.y, particle3.x, particle3.y, midPointX, midPointY, particle2.c, 1);
-                triangleGen(particle1.x, particle1.y, particle3.x, particle3.y, midPointX, midPointY, particle3.c, 1);
-                triangleGen(particle1.x, particle1.y, particle2.x, particle2.y, midPointX, midPointY, particle1.c, 1);
-                particle2.update();
-                particle3.update();
-                particle1.update();
-              }
+          if(lineA <= distance && lineB <= distance){
+            // 점이 셋다 사정거리일때.
+            alphaModulate = 1;
+            
+
+          } else if(lineA <= distance && lineB > distance) {
+            // 둘은 가까운데 하나는 아닐때 1 (fade-out)
+            alphaModulate = map((lineB), distance, distance + offset, 1, 0);
+
+          } else if(lineB <= distance && lineA > distance) {
+            // 둘은 가까운데 하나는 아닐때 2 (fade-out)
+            alphaModulate = map((lineA), 0, distance + offset, 1, 0);
+
+          } else {
+            // 셋다 멀때.
+            alphaModulate = 0;
           }
 
+          // 별가루 같은 느낌.
+          pushStyle();
+          fill(56, 47 - (particle2.randomiser / 2), 100, particle1.randomiser / 100);
+          ellipse(midPointX, midPointY, particle1.r, particle1.r);
+          popStyle();
+
+          triangleGen(particle2.x, particle2.y, particle3.x, particle3.y, midPointX, midPointY, particle2.c, alphaModulate);
+          triangleGen(particle1.x, particle1.y, particle3.x, particle3.y, midPointX, midPointY, particle3.c, alphaModulate);
+          triangleGen(particle1.x, particle1.y, particle2.x, particle2.y, midPointX, midPointY, particle1.c, alphaModulate);
+          particle2.update();
+          particle3.update();
+          particle1.update();
         }
       }
     }
-
-    // triangle(particle1.x, particle1.y, particle2.x, particle2.y, particle3.x, particle3.y);
     popMatrix();
   }
-}
-
-public void styling(){
-  color c;
-
-  pushStyle();
-  strokeWeight(1);
-  // c = colorBlended(random(1), 190, 40, 75, 199, 96, 95, 0.8);
-  // stroke(190, 60, 30, 0.2);
-  // stroke(c);
 }
 
 public void triangleGen(float x1, float y1, float x2, float y2, float x3, float y3, color c, float colorOpacity){
@@ -153,9 +153,8 @@ class Particle {
   Particle(){
     x = random(trim, randomBoundary);
     y = random(trim, randomBoundaryHeight);
-    r = 4;
+    r = random(1, 4);
 
-    // 색은 랜덤으로 뽑자..
     randomiser = random(100);
     colorMode(HSB,360,100,100,1);
 
@@ -168,7 +167,7 @@ class Particle {
     pushStyle();
     noStroke();
     fill(c);
-    ellipse(x, y, r, r);
+    ellipse(x, y, 3, 3);
     popStyle();
   }
 
@@ -209,7 +208,6 @@ class Particle {
 
     if (y > randomBoundaryHeight - r) {
       i =- 1;
-      rotateX(PI/3.0 * i);
       // 파란계열
       c = colorBlended(random(1), 195, 80, 50, 210, 96, 100, 0.8);
 
@@ -225,7 +223,6 @@ class Particle {
     if (x > randomBoundary - r){
       j =- 1;
       c = colorBlended(random(1), 181, 80, 75, 199, 96, 70, 0.8);
-      rotateY(PI/3.0 * j);
 
     }
 
@@ -233,8 +230,13 @@ class Particle {
       j = 1;
       // 녹색계??
       c = colorBlended(random(1), 171, 50, 94, 199, 96, 40, 0.8);
-      rotateY(PI/3.0 * -j);
     }
 
   }
+}
+
+// Save screenshots
+void keyPressed() {
+  println("saved");
+  saveFrame("particles-###.png");
 }

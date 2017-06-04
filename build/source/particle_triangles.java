@@ -29,22 +29,20 @@ public class particle_triangles extends PApplet {
 
 PVector midPoint;
 
-// ArrayList midPointsX;
-// ArrayList midPointsY;
 ArrayList particles;
 
-PVector vP1, vP2, vP3, cP1;
-
 int pointNumber;
-int trim;
-int[] style;
-int distance = 160;
+int trim, offset;
+int distance = 100;
 
 float randomBoundary;
 float randomBoundaryHeight;
 
 float midPointX, midPointY;
-float areaX, areaY, areaTotal;
+float lineA, lineB;
+float lineRatio = 3.0f;
+
+float alphaModulate;
 
 
 public void setup() {
@@ -58,44 +56,40 @@ public void setup() {
   pointNumber = 24;
   particles = new ArrayList();
 
-  trim = 40;
+  trim = 20;
+  offset = 40;
+
   randomBoundary = width - trim*2;
   randomBoundaryHeight = height - trim*2;
 
-
   // generating points.
-  int index = 0;
-  float randomiser;
-
   for(int i = 0; i < pointNumber; i++){
     Particle particle = new Particle();
     particles.add(particle);
   }
 
+  noLoop();
+
 }
 
 public void draw() {
-  fill(0, 0, 100, 1);
+  fill(0xff080B1A, 0.8f);
   noStroke();
   rect(0, 0, width, height);
 
-  int index = 0;
-  float fading = 0.9f;
   // \ubb54\uac00 \uc0bc\uac01\ud615\uc744 \ub9cc\ub4e4\ub824\uba74 \uc774\ub807\uac8c \ud574\uc57c\ud558\ub294 \uac78\uae4c...
 
   for(int i = 0; i < particles.size(); i++){
     pushMatrix();
 
     Particle particle1 = (Particle) particles.get(i);
-    particle1.display();
-    particle1.update();
+    // particle1.update();
 
     ellipseMode(CENTER);
 
     for(int j = i + 1; j < particles.size(); j++){
       Particle particle2 = (Particle) particles.get(j);
-      particle2.display();
-      particle2.update();
+      // particle2.update();
 
       if (dist(particle1.x, particle1.y, particle2.x, particle2.y) < distance) {
         fill(particle2.c);
@@ -104,46 +98,51 @@ public void draw() {
         for (int k = i + 2; k < particles.size(); k++ ) {
           Particle particle3 = (Particle) particles.get(k);
           particle3.display();
-          particle3.update();
+          particle1.display();
+          particle2.display();
 
+          // in the middle of the 3 points
           midPointX = (particle1.x + particle2.x + particle3.x) / 3;
           midPointY = (particle1.y + particle2.y + particle3.y) / 3;
-          // vP2.add(vP1);
 
-          // \ub113\uc774\ub85c \uac00\uc790...
-          areaX = (particle1.x * particle2.y) + (particle2.x * particle3.y) + (particle3.x * particle1.y);
-          areaY = (particle1.x * particle3.y) + (particle3.x * particle2.y) + (particle2.x * particle1.y);
-          areaTotal = (areaX - areaY)/2;
-          int checkArea = round(areaTotal);
+          // \ube44\ub840\ub97c \uad6c\ud574\ubcf4\uc790..
+          lineA = dist(particle2.x, particle2.y, particle3.x, particle3.y);
+          lineB = dist((particle2.x + particle3.x)/2, (particle2.y + particle3.y)/2, particle1.x, particle1.y);
 
-          if(checkArea < 10000 && checkArea > 0) {
-              if(dist(particle2.x, particle2.y, particle3.x, particle3.y) < distance){
-                triangleGen(particle2.x, particle2.y, particle3.x, particle3.y, midPointX, midPointY, particle2.c, 1);
-                triangleGen(particle1.x, particle1.y, particle3.x, particle3.y, midPointX, midPointY, particle3.c, 1);
-                triangleGen(particle1.x, particle1.y, particle2.x, particle2.y, midPointX, midPointY, particle1.c, 1);
-                particle2.update();
-                particle3.update();
-                particle1.update();
-              }
+          if(lineA <= distance && lineB <= distance){
+            // \uc810\uc774 \uc14b\ub2e4 \uc0ac\uc815\uac70\ub9ac\uc77c\ub54c.
+            alphaModulate = 1;
+
+          } else if(lineA <= distance && lineB > distance) {
+            // \ub458\uc740 \uac00\uae4c\uc6b4\ub370 \ud558\ub098\ub294 \uc544\ub2d0\ub54c 1 (fade-out)
+            alphaModulate = map((lineB), distance, distance + offset, 1, 0);
+
+          } else if(lineB <= distance && lineA > distance) {
+            // \ub458\uc740 \uac00\uae4c\uc6b4\ub370 \ud558\ub098\ub294 \uc544\ub2d0\ub54c 2 (fade-out)
+            alphaModulate = map((lineA), 0, distance + offset, 1, 0);
+
+          } else {
+            // \uc14b\ub2e4 \uba40\ub54c.
+            alphaModulate = 0;
           }
 
+          // \ubcc4\uac00\ub8e8 \uac19\uc740 \ub290\ub08c.
+          pushStyle();
+          fill(56, 47 - (particle2.randomiser / 2), 100, particle1.randomiser / 100);
+          ellipse(midPointX, midPointY, particle1.r, particle1.r);
+          popStyle();
+
+          triangleGen(particle2.x, particle2.y, particle3.x, particle3.y, midPointX, midPointY, particle2.c, alphaModulate);
+          triangleGen(particle1.x, particle1.y, particle3.x, particle3.y, midPointX, midPointY, particle3.c, alphaModulate);
+          triangleGen(particle1.x, particle1.y, particle2.x, particle2.y, midPointX, midPointY, particle1.c, alphaModulate);
+          particle2.update();
+          particle3.update();
+          particle1.update();
         }
       }
     }
-
-    // triangle(particle1.x, particle1.y, particle2.x, particle2.y, particle3.x, particle3.y);
     popMatrix();
   }
-}
-
-public void styling(){
-  int c;
-
-  pushStyle();
-  strokeWeight(1);
-  // c = colorBlended(random(1), 190, 40, 75, 199, 96, 95, 0.8);
-  // stroke(190, 60, 30, 0.2);
-  // stroke(c);
 }
 
 public void triangleGen(float x1, float y1, float x2, float y2, float x3, float y3, int c, float colorOpacity){
@@ -172,9 +171,8 @@ class Particle {
   Particle(){
     x = random(trim, randomBoundary);
     y = random(trim, randomBoundaryHeight);
-    r = 4;
+    r = random(1, 4);
 
-    // \uc0c9\uc740 \ub79c\ub364\uc73c\ub85c \ubf51\uc790..
     randomiser = random(100);
     colorMode(HSB,360,100,100,1);
 
@@ -187,7 +185,7 @@ class Particle {
     pushStyle();
     noStroke();
     fill(c);
-    ellipse(x, y, r, r);
+    ellipse(x, y, 3, 3);
     popStyle();
   }
 
@@ -228,7 +226,6 @@ class Particle {
 
     if (y > randomBoundaryHeight - r) {
       i =- 1;
-      rotateX(PI/3.0f * i);
       // \ud30c\ub780\uacc4\uc5f4
       c = colorBlended(random(1), 195, 80, 50, 210, 96, 100, 0.8f);
 
@@ -244,7 +241,6 @@ class Particle {
     if (x > randomBoundary - r){
       j =- 1;
       c = colorBlended(random(1), 181, 80, 75, 199, 96, 70, 0.8f);
-      rotateY(PI/3.0f * j);
 
     }
 
@@ -252,12 +248,17 @@ class Particle {
       j = 1;
       // \ub179\uc0c9\uacc4??
       c = colorBlended(random(1), 171, 50, 94, 199, 96, 40, 0.8f);
-      rotateY(PI/3.0f * -j);
     }
 
   }
 }
-  public void settings() {  size(800, 600, OPENGL);  smooth(8);  pixelDensity(displayDensity()); }
+
+// Save screenshots
+public void keyPressed() {
+  println("saved");
+  saveFrame("particles-###.png");
+}
+  public void settings() {  size(375, 667, OPENGL);  smooth(8);  pixelDensity(displayDensity()); }
   static public void main(String[] passedArgs) {
     String[] appletArgs = new String[] { "particle_triangles" };
     if (passedArgs != null) {
