@@ -4,7 +4,6 @@ import processing.event.*;
 import processing.opengl.*; 
 
 import processing.opengl.*; 
-import processing.pdf.*; 
 
 import java.util.HashMap; 
 import java.util.ArrayList; 
@@ -19,31 +18,19 @@ public class particle_triangles extends PApplet {
 
 
 
-
-
-/* \ubaa9\ud45c
-6. \uc6c0\uc9c1\uc784\uc744 \ubd80\ub4dc\ub7fd\uac8c...
-7. \uc120\uc758 \uac2f\uc218\ub97c \ubc18\ubcf5\ub418\uc9c0 \uc54a\ub3c4\ub85d \uc904\uc5ec\ubcf8\ub2e4.
-8. z \ucd95\uc758 \uac1c\ub150\uc744 \ub3c4\uc785\ud574\uc11c (\uac00\uc6b4\ub370 \uc810?) \ubcfc\ub85d \ud558\uac8c \ub9cc\ub4e4\uc5b4\ubcf8\ub2e4!
-*/
-
-PVector midPoint;
-
 ArrayList particles;
 
-int pointNumber;
-int trim, offset;
-int distance = 100;
+int pointNumber = 40;
+int trim = 20, offset = 20, distance = 200;
 
-float randomBoundary;
-float randomBoundaryHeight;
+float randomBoundary, randomBoundaryHeight;
+float alphaModulate, n;
 
 float midPointX, midPointY;
 float lineA, lineB;
-float lineRatio = 3.0f;
 
-float alphaModulate;
-
+// Change to true if you want to capture every frame for gif animation.
+boolean captureFrame = false;
 
 public void setup() {
   
@@ -53,12 +40,7 @@ public void setup() {
   background(0, 0, 100, 1);
 
   // let's make a random point!
-  pointNumber = 24;
   particles = new ArrayList();
-
-  trim = 20;
-  offset = 40;
-
   randomBoundary = width - trim*2;
   randomBoundaryHeight = height - trim*2;
 
@@ -67,13 +49,10 @@ public void setup() {
     Particle particle = new Particle();
     particles.add(particle);
   }
-
-  noLoop();
-
 }
 
 public void draw() {
-  fill(0xff080B1A, 0.8f);
+  fill(0xff080B1A, 1);
   noStroke();
   rect(0, 0, width, height);
 
@@ -97,9 +76,9 @@ public void draw() {
         // make triangle
         for (int k = i + 2; k < particles.size(); k++ ) {
           Particle particle3 = (Particle) particles.get(k);
-          particle3.display();
           particle1.display();
           particle2.display();
+          particle3.display();
 
           // in the middle of the 3 points
           midPointX = (particle1.x + particle2.x + particle3.x) / 3;
@@ -108,40 +87,49 @@ public void draw() {
           // \ube44\ub840\ub97c \uad6c\ud574\ubcf4\uc790..
           lineA = dist(particle2.x, particle2.y, particle3.x, particle3.y);
           lineB = dist((particle2.x + particle3.x)/2, (particle2.y + particle3.y)/2, particle1.x, particle1.y);
+          alphaModulate = map((lineB), distance, distance + offset, 1, 0);
 
           if(lineA <= distance && lineB <= distance){
             // \uc810\uc774 \uc14b\ub2e4 \uc0ac\uc815\uac70\ub9ac\uc77c\ub54c.
-            alphaModulate = 1;
-
+            // alphaModulate = 1;
+            if((lineA >= lineB) == true){
+              alphaModulate = map((lineB), distance, distance + offset, 1, 0);
+            } else {
+              alphaModulate = map((lineA), distance, distance + offset, 1, 0);
+            }
+            particle1.update();
           } else if(lineA <= distance && lineB > distance) {
             // \ub458\uc740 \uac00\uae4c\uc6b4\ub370 \ud558\ub098\ub294 \uc544\ub2d0\ub54c 1 (fade-out)
             alphaModulate = map((lineB), distance, distance + offset, 1, 0);
 
           } else if(lineB <= distance && lineA > distance) {
             // \ub458\uc740 \uac00\uae4c\uc6b4\ub370 \ud558\ub098\ub294 \uc544\ub2d0\ub54c 2 (fade-out)
-            alphaModulate = map((lineA), 0, distance + offset, 1, 0);
-
+            alphaModulate = map((lineA), distance, distance + offset, 1, 0);
+            particle3.update();
+            // \ubcc4\uac00\ub8e8 \uac19\uc740 \ub290\ub08c.
+            pushStyle();
+            fill(56, 47 - (particle2.randomiser / 2), 100, (particle1.randomiser)/100);
+            ellipse(midPointX, midPointY, particle1.r, particle1.r);
+            popStyle();
           } else {
             // \uc14b\ub2e4 \uba40\ub54c.
             alphaModulate = 0;
+            particle2.update();
           }
 
-          // \ubcc4\uac00\ub8e8 \uac19\uc740 \ub290\ub08c.
-          pushStyle();
-          fill(56, 47 - (particle2.randomiser / 2), 100, particle1.randomiser / 100);
-          ellipse(midPointX, midPointY, particle1.r, particle1.r);
-          popStyle();
+          n = norm(alphaModulate, 0, 1);
+          triangleGen(particle2.x, particle2.y, particle3.x, particle3.y, midPointX, midPointY, particle2.c, n);
+          triangleGen(particle1.x, particle1.y, particle3.x, particle3.y, midPointX, midPointY, particle3.c, n);
+          triangleGen(particle1.x, particle1.y, particle2.x, particle2.y, midPointX, midPointY, particle1.c, n);
 
-          triangleGen(particle2.x, particle2.y, particle3.x, particle3.y, midPointX, midPointY, particle2.c, alphaModulate);
-          triangleGen(particle1.x, particle1.y, particle3.x, particle3.y, midPointX, midPointY, particle3.c, alphaModulate);
-          triangleGen(particle1.x, particle1.y, particle2.x, particle2.y, midPointX, midPointY, particle1.c, alphaModulate);
-          particle2.update();
-          particle3.update();
-          particle1.update();
+
         }
       }
     }
     popMatrix();
+  }
+  if(captureFrame == true){
+    saveFrame("gifVersion/particles-###.png");
   }
 }
 
@@ -160,7 +148,6 @@ public int colorBlended(float fract, float h, float s, float b, float h2, float 
   return color(h + h2 * fract, s + s2 * fract, b + b2 * fract, a);
 }
 
-
 class Particle {
   float x, y, r;
   float z;
@@ -171,7 +158,7 @@ class Particle {
   Particle(){
     x = random(trim, randomBoundary);
     y = random(trim, randomBoundaryHeight);
-    r = random(1, 4);
+    r = random(1, 3);
 
     randomiser = random(100);
     colorMode(HSB,360,100,100,1);
@@ -189,35 +176,6 @@ class Particle {
     popStyle();
   }
 
-  public void triangleGen(Particle p2, Particle p3){
-    pushStyle();
-    noStroke();
-
-    float x2 = p2.x;
-    float x3 = p3.x;
-
-    float y2 = p2.y;
-    float y3 = p3.y;
-
-    float midPointX = (x + x2 + x3) / 3;
-    float midPointY = (y + y2 + y3) / 3;
-
-    int c1 = c;
-    int c2 = p2.c;
-    int c3 = p3.c;
-
-    fill(c1);
-    triangle(x, y, x2, y2, midPointX, midPointY);
-
-    fill(c2);
-    triangle(x2, y2, x3, y3, midPointX, midPointY);
-
-    fill(c3);
-    triangle(x, y, x3, y3, midPointX, midPointY);
-
-    popStyle();
-  }
-
   public void update()
   {
     // animating logic (\ucc98\uc74c\uc5d4 \uc815\ubc29\ud5a5\uc774\ub77c\uc11c \uc7ac\ubbf8\uac00 \uc5c6\ub2e4!!!)
@@ -232,7 +190,6 @@ class Particle {
     }
     if (y < trim + r) {
       i = 1;
-      rotateX(PI/3.0f * -i);
       // \uc0ac\uc774\uc548 \uacc4\uc5f4
       c = colorBlended(random(1), 190, 40, 75, 199, 96, 95, 0.8f);
 
@@ -249,16 +206,14 @@ class Particle {
       // \ub179\uc0c9\uacc4??
       c = colorBlended(random(1), 171, 50, 94, 199, 96, 40, 0.8f);
     }
-
   }
 }
 
-// Save screenshots
-public void keyPressed() {
-  println("saved");
-  saveFrame("particles-###.png");
+public void keyPressed(){
+  println("SAVED");
+  saveFrame("capture-###@2x.png");
 }
-  public void settings() {  size(375, 667, OPENGL);  smooth(8);  pixelDensity(displayDensity()); }
+  public void settings() {  size(1167, 600, OPENGL);  smooth(8);  pixelDensity(displayDensity()); }
   static public void main(String[] passedArgs) {
     String[] appletArgs = new String[] { "particle_triangles" };
     if (passedArgs != null) {

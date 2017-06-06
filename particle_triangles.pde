@@ -1,45 +1,28 @@
 import processing.opengl.*;
-import processing.pdf.*;
-
-
-/* 목표
-6. 움직임을 부드럽게...
-7. 선의 갯수를 반복되지 않도록 줄여본다.
-8. z 축의 개념을 도입해서 (가운데 점?) 볼록 하게 만들어본다!
-*/
-
-PVector midPoint;
 
 ArrayList particles;
 
-int pointNumber;
-int trim, offset;
-int distance = 100;
+int pointNumber = 32;
+int trim = 20, offset = 20, distance = 200;
 
-float randomBoundary;
-float randomBoundaryHeight;
+float randomBoundary, randomBoundaryHeight;
+float alphaModulate, n;
 
 float midPointX, midPointY;
 float lineA, lineB;
-float lineRatio = 3.0;
 
-float alphaModulate;
-
+// Change to true if you want to capture every frame for gif animation.
+boolean captureFrame = false;
 
 void setup() {
-  size(375, 667, OPENGL);
+  size(1167, 600, OPENGL);
   pixelDensity(displayDensity());
   smooth(8);
   colorMode(HSB,360,100,100,1);
   background(0, 0, 100, 1);
 
   // let's make a random point!
-  pointNumber = 24;
   particles = new ArrayList();
-
-  trim = 20;
-  offset = 40;
-
   randomBoundary = width - trim*2;
   randomBoundaryHeight = height - trim*2;
 
@@ -48,13 +31,10 @@ void setup() {
     Particle particle = new Particle();
     particles.add(particle);
   }
-
-  noLoop();
-
 }
 
 void draw() {
-  fill(#080B1A, 0.8);
+  fill(#080B1A, 1);
   noStroke();
   rect(0, 0, width, height);
 
@@ -78,9 +58,9 @@ void draw() {
         // make triangle
         for (int k = i + 2; k < particles.size(); k++ ) {
           Particle particle3 = (Particle) particles.get(k);
-          particle3.display();
           particle1.display();
           particle2.display();
+          particle3.display();
 
           // in the middle of the 3 points
           midPointX = (particle1.x + particle2.x + particle3.x) / 3;
@@ -89,41 +69,49 @@ void draw() {
           // 비례를 구해보자..
           lineA = dist(particle2.x, particle2.y, particle3.x, particle3.y);
           lineB = dist((particle2.x + particle3.x)/2, (particle2.y + particle3.y)/2, particle1.x, particle1.y);
+          alphaModulate = map((lineB), distance, distance + offset, 1, 0);
 
           if(lineA <= distance && lineB <= distance){
             // 점이 셋다 사정거리일때.
-            alphaModulate = 1;
-            
-
+            // alphaModulate = 1;
+            if((lineA >= lineB) == true){
+              alphaModulate = map((lineB), distance, distance + offset, 1, 0);
+            } else {
+              alphaModulate = map((lineA), distance, distance + offset, 1, 0);
+            }
+            particle1.update();
           } else if(lineA <= distance && lineB > distance) {
             // 둘은 가까운데 하나는 아닐때 1 (fade-out)
             alphaModulate = map((lineB), distance, distance + offset, 1, 0);
 
           } else if(lineB <= distance && lineA > distance) {
             // 둘은 가까운데 하나는 아닐때 2 (fade-out)
-            alphaModulate = map((lineA), 0, distance + offset, 1, 0);
-
+            alphaModulate = map((lineA), distance, distance + offset, 1, 0);
+            particle3.update();
+            // 별가루 같은 느낌.
+            pushStyle();
+            fill(56, 47 - (particle2.randomiser / 2), 100, (particle1.randomiser)/100);
+            ellipse(midPointX, midPointY, particle1.r, particle1.r);
+            popStyle();
           } else {
             // 셋다 멀때.
             alphaModulate = 0;
+            particle2.update();
           }
 
-          // 별가루 같은 느낌.
-          pushStyle();
-          fill(56, 47 - (particle2.randomiser / 2), 100, particle1.randomiser / 100);
-          ellipse(midPointX, midPointY, particle1.r, particle1.r);
-          popStyle();
+          n = norm(alphaModulate, 0, 1);
+          triangleGen(particle2.x, particle2.y, particle3.x, particle3.y, midPointX, midPointY, particle2.c, n);
+          triangleGen(particle1.x, particle1.y, particle3.x, particle3.y, midPointX, midPointY, particle3.c, n);
+          triangleGen(particle1.x, particle1.y, particle2.x, particle2.y, midPointX, midPointY, particle1.c, n);
 
-          triangleGen(particle2.x, particle2.y, particle3.x, particle3.y, midPointX, midPointY, particle2.c, alphaModulate);
-          triangleGen(particle1.x, particle1.y, particle3.x, particle3.y, midPointX, midPointY, particle3.c, alphaModulate);
-          triangleGen(particle1.x, particle1.y, particle2.x, particle2.y, midPointX, midPointY, particle1.c, alphaModulate);
-          particle2.update();
-          particle3.update();
-          particle1.update();
+
         }
       }
     }
     popMatrix();
+  }
+  if(captureFrame == true){
+    saveFrame("gifVersion/particles-###.png");
   }
 }
 
@@ -142,7 +130,6 @@ public int colorBlended(float fract, float h, float s, float b, float h2, float 
   return color(h + h2 * fract, s + s2 * fract, b + b2 * fract, a);
 }
 
-
 class Particle {
   float x, y, r;
   float z;
@@ -153,7 +140,7 @@ class Particle {
   Particle(){
     x = random(trim, randomBoundary);
     y = random(trim, randomBoundaryHeight);
-    r = random(1, 4);
+    r = random(1, 3);
 
     randomiser = random(100);
     colorMode(HSB,360,100,100,1);
@@ -171,35 +158,6 @@ class Particle {
     popStyle();
   }
 
-  void triangleGen(Particle p2, Particle p3){
-    pushStyle();
-    noStroke();
-
-    float x2 = p2.x;
-    float x3 = p3.x;
-
-    float y2 = p2.y;
-    float y3 = p3.y;
-
-    float midPointX = (x + x2 + x3) / 3;
-    float midPointY = (y + y2 + y3) / 3;
-
-    color c1 = c;
-    color c2 = p2.c;
-    color c3 = p3.c;
-
-    fill(c1);
-    triangle(x, y, x2, y2, midPointX, midPointY);
-
-    fill(c2);
-    triangle(x2, y2, x3, y3, midPointX, midPointY);
-
-    fill(c3);
-    triangle(x, y, x3, y3, midPointX, midPointY);
-
-    popStyle();
-  }
-
   void update()
   {
     // animating logic (처음엔 정방향이라서 재미가 없다!!!)
@@ -214,7 +172,6 @@ class Particle {
     }
     if (y < trim + r) {
       i = 1;
-      rotateX(PI/3.0 * -i);
       // 사이안 계열
       c = colorBlended(random(1), 190, 40, 75, 199, 96, 95, 0.8);
 
@@ -231,12 +188,10 @@ class Particle {
       // 녹색계??
       c = colorBlended(random(1), 171, 50, 94, 199, 96, 40, 0.8);
     }
-
   }
 }
 
-// Save screenshots
-void keyPressed() {
-  println("saved");
-  saveFrame("particles-###.png");
+void keyPressed(){
+  println("SAVED");
+  saveFrame("capture-###@2x.png");
 }
