@@ -2,8 +2,8 @@ import processing.opengl.*;
 
 ArrayList particles;
 
-int pointNumber = 32;
-int trim = 20, offset = 20, distance = 200;
+int pointNumber = 16;
+int trim = 20, offset = 10, distance = 120;
 
 float randomBoundary, randomBoundaryHeight;
 float alphaModulate, n;
@@ -11,11 +11,8 @@ float alphaModulate, n;
 float midPointX, midPointY;
 float lineA, lineB;
 
-// Change to true if you want to capture every frame for gif animation.
-boolean captureFrame = false;
-
 void setup() {
-  size(1167, 600, OPENGL);
+  size(400, 600, OPENGL);
   pixelDensity(displayDensity());
   smooth(8);
   colorMode(HSB,360,100,100,1);
@@ -38,19 +35,16 @@ void draw() {
   noStroke();
   rect(0, 0, width, height);
 
-  // 뭔가 삼각형을 만들려면 이렇게 해야하는 걸까...
-
   for(int i = 0; i < particles.size(); i++){
     pushMatrix();
 
     Particle particle1 = (Particle) particles.get(i);
-    // particle1.update();
+    particle1.update();
 
     ellipseMode(CENTER);
 
     for(int j = i + 1; j < particles.size(); j++){
       Particle particle2 = (Particle) particles.get(j);
-      // particle2.update();
 
       if (dist(particle1.x, particle1.y, particle2.x, particle2.y) < distance) {
         fill(particle2.c);
@@ -66,14 +60,13 @@ void draw() {
           midPointX = (particle1.x + particle2.x + particle3.x) / 3;
           midPointY = (particle1.y + particle2.y + particle3.y) / 3;
 
-          // 비례를 구해보자..
+          // finding ratio based on 2 lines of a triangle
           lineA = dist(particle2.x, particle2.y, particle3.x, particle3.y);
           lineB = dist((particle2.x + particle3.x)/2, (particle2.y + particle3.y)/2, particle1.x, particle1.y);
           alphaModulate = map((lineB), distance, distance + offset, 1, 0);
 
           if(lineA <= distance && lineB <= distance){
-            // 점이 셋다 사정거리일때.
-            // alphaModulate = 1;
+            // When all points are in the distance
             if((lineA >= lineB) == true){
               alphaModulate = map((lineB), distance, distance + offset, 1, 0);
             } else {
@@ -81,37 +74,37 @@ void draw() {
             }
             particle1.update();
           } else if(lineA <= distance && lineB > distance) {
-            // 둘은 가까운데 하나는 아닐때 1 (fade-out)
+            // A is far
             alphaModulate = map((lineB), distance, distance + offset, 1, 0);
 
           } else if(lineB <= distance && lineA > distance) {
-            // 둘은 가까운데 하나는 아닐때 2 (fade-out)
+            // B is far
             alphaModulate = map((lineA), distance, distance + offset, 1, 0);
             particle3.update();
-            // 별가루 같은 느낌.
+
+            // Stardust effect
             pushStyle();
             fill(56, 47 - (particle2.randomiser / 2), 100, (particle1.randomiser)/100);
             ellipse(midPointX, midPointY, particle1.r, particle1.r);
             popStyle();
+
           } else {
-            // 셋다 멀때.
+            // All points are further than target distance.
             alphaModulate = 0;
             particle2.update();
           }
 
+          // normalising
           n = norm(alphaModulate, 0, 1);
+
+          // triangles.
           triangleGen(particle2.x, particle2.y, particle3.x, particle3.y, midPointX, midPointY, particle2.c, n);
           triangleGen(particle1.x, particle1.y, particle3.x, particle3.y, midPointX, midPointY, particle3.c, n);
           triangleGen(particle1.x, particle1.y, particle2.x, particle2.y, midPointX, midPointY, particle1.c, n);
-
-
         }
       }
     }
     popMatrix();
-  }
-  if(captureFrame == true){
-    saveFrame("gifVersion/particles-###.png");
   }
 }
 
@@ -122,7 +115,7 @@ public void triangleGen(float x1, float y1, float x2, float y2, float x3, float 
   popStyle();
 }
 
-// 색을...써보아요...
+// Colour blending
 public int colorBlended(float fract, float h, float s, float b, float h2, float s2, float b2, float a){
   h2 = (h2 - h);
   s2 = (s2 - s);
@@ -160,38 +153,39 @@ class Particle {
 
   void update()
   {
-    // animating logic (처음엔 정방향이라서 재미가 없다!!!)
+    // animating particles
     x = x + j*0.02;
     y = y + i*0.02;
 
     if (y > randomBoundaryHeight - r) {
       i =- 1;
-      // 파란계열
+      // Blue
       c = colorBlended(random(1), 195, 80, 50, 210, 96, 100, 0.8);
 
     }
     if (y < trim + r) {
       i = 1;
-      // 사이안 계열
+      // Cyan
       c = colorBlended(random(1), 190, 40, 75, 199, 96, 95, 0.8);
 
     }
 
     if (x > randomBoundary - r){
       j =- 1;
+      // Teal
       c = colorBlended(random(1), 181, 80, 75, 199, 96, 70, 0.8);
 
     }
 
     if (x < trim + r) {
       j = 1;
-      // 녹색계??
+      // Green
       c = colorBlended(random(1), 171, 50, 94, 199, 96, 40, 0.8);
     }
   }
 }
 
-void keyPressed(){
-  println("SAVED");
-  saveFrame("capture-###@2x.png");
-}
+// void keyPressed(){
+//   println("SAVED");
+//   saveFrame("capture-###@2x.png");
+// }
